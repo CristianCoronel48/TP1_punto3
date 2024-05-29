@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -40,12 +40,24 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+TIM_HandleTypeDef htim2;
+
 UART_HandleTypeDef huart1;
 DMA_HandleTypeDef hdma_usart1_rx;
 DMA_HandleTypeDef hdma_usart1_tx;
 
 /* USER CODE BEGIN PV */
-
+uint8_t Tec1p[]= "Tecla1presionadaaa\n";
+uint8_t Tec1l[]= "Tecla1liberada\n";
+uint8_t Tec2p[]= "Tecla2presionadaa\n";
+uint8_t Tec2l[]= "Tecla2liberada\n";
+uint8_t buttonState1 = 0;
+uint8_t counter1 = 0;
+uint8_t lastButtonState1 = 0;
+uint8_t buttonState2 = 0;
+uint8_t counter2 = 0;
+uint8_t lastButtonState2 = 0;
+uint8_t data;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -53,6 +65,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -92,14 +105,72 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_USART1_UART_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
+
+#define DEBOUNCE_SAMPLES 1
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+HAL_UART_Receive_IT(&huart1, &data, 1);
+
   while (1)
   {
+
+	  uint8_t currentButtonState1 = HAL_GPIO_ReadPin(GPIOA, Tec1_Pin);
+	  // Si el estado del botón ha cambiado
+	   if (currentButtonState1 != lastButtonState1)
+	   {
+	   counter1++;
+	   if (counter1 == DEBOUNCE_SAMPLES)
+	   {
+	   // Actualiza el estado del botón si el cambio es consistente
+	   buttonState1 = currentButtonState1;
+	   counter1 = 0;
+	   // Aquí puedes agregar el código que debe ejecutarse al detectar una pulsación
+	   if (buttonState1 == 1)
+	   {   // El botón ha sido presionado
+		   // Agregar la lógica deseada aquí
+          HAL_UART_Transmit(&huart1, Tec1p, strlen((char*)Tec1p),HAL_MAX_DELAY);
+	   }
+	   else {// El botón ha sido liberado
+ 	   	     // Agregar la lógica deseada aquí
+	 	   	 HAL_UART_Transmit(&huart1, Tec1l, strlen((char*)Tec1l),HAL_MAX_DELAY);
+	 	   	}
+	   }
+	   }
+	   else {counter1 = 0; // Reiniciar el contador si el estado no cambia
+	   }
+	   lastButtonState1 = currentButtonState1;
+
+	       uint8_t currentButtonState2 = HAL_GPIO_ReadPin(GPIOA, Tec2_Pin);
+	   	   // Si el estado del botón ha cambiado
+	   	   if (currentButtonState2 != lastButtonState2)
+	   	   {
+	   	   counter2++;
+	   	   if (counter2 == DEBOUNCE_SAMPLES)
+	   	   {
+	   	   // Actualiza el estado del botón si el cambio es consistente
+	   	   buttonState2 = currentButtonState2;
+	   	   counter2 = 0;
+	   	   // Aquí puedes agregar el código que debe ejecutarse al detectar una pulsación
+	   	   if (buttonState2 == 1)
+	   	   {   // El botón ha sido presionado
+		   	   // Agregar la lógica deseada aquí
+	          HAL_UART_Transmit(&huart1, Tec2p, strlen((char*)Tec2p),HAL_MAX_DELAY);
+	   	   }
+	   	   else  {// El botón ha sido liberado
+	   	   		  // Agregar la lógica deseada aquí
+	   	   		  HAL_UART_Transmit(&huart1, Tec2l, strlen((char*)Tec2l),HAL_MAX_DELAY);
+	   	   		 }
+	   	   }
+	   	   }
+	   	   else {counter2 = 0; // Reiniciar el contador si el estado no cambia
+	   	   }
+	   	   lastButtonState2 = currentButtonState2;
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -141,6 +212,51 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 0;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 65535;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
+
 }
 
 /**
@@ -215,7 +331,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(Led_GPIO_Port, Led_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, Led1_Pin|Led2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, Led1_Pin|Led2_Pin|Led3_Pin|Led4_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : Led_Pin */
   GPIO_InitStruct.Pin = Led_Pin;
@@ -230,8 +346,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : Led1_Pin Led2_Pin */
-  GPIO_InitStruct.Pin = Led1_Pin|Led2_Pin;
+  /*Configure GPIO pins : Led1_Pin Led2_Pin Led3_Pin Led4_Pin */
+  GPIO_InitStruct.Pin = Led1_Pin|Led2_Pin|Led3_Pin|Led4_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -242,6 +358,23 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+   HAL_UART_Transmit(&huart1, &data, 1, HAL_MAX_DELAY);
+    if (data == 97)
+    {HAL_GPIO_TogglePin(GPIOA , Led1_Pin);}
+
+    if (data== 115)
+    {HAL_GPIO_TogglePin(GPIOA , Led2_Pin);}
+
+    if (data== 100)
+    {HAL_GPIO_TogglePin(GPIOA , Led3_Pin);}
+
+    if (data== 102)
+    {HAL_GPIO_TogglePin(GPIOA , Led4_Pin);}
+
+    HAL_UART_Receive_IT(&huart1, &data,1);
+}
 
 /* USER CODE END 4 */
 
